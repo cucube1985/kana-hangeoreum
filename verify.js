@@ -51,4 +51,9 @@ const report=vm.runInContext(`(() => {
 assert.equal(report.issues.length,0,report.issues.join(', '));
 assert.equal(report.counts.basic,46);assert.equal(report.counts.voiced,25);assert.equal(report.counts.combo,33);assert.equal(report.counts.extended,16);
 for(const file of report.files)assert.ok(fs.statSync(file).size>500,file);
+// 서비스 워커가 미리 저장하는 앱 파일 목록(CORE)이 index.html이 쓰는 파일을 모두 담고, 실제로 있어야 해요.
+const sw=fs.readFileSync('sw.js','utf8'),core=JSON.parse(sw.match(/const CORE = (\[[^\]]*\])/)[1].replace(/'/g,'"'));
+const used=[...fs.readFileSync('index.html','utf8').matchAll(/(?:src|href)="([^"]+)"/g)].map(m=>m[1]).filter(u=>!/^(https?:|data:|#|\.\/index\.html$)/.test(u));
+for(const file of used)assert.ok(core.includes(file),'sw.js CORE에 빠진 파일: '+file);
+for(const file of core)assert.ok(file==='./'||fs.existsSync(file),'sw.js CORE의 파일이 없음: '+file);
 console.log(`PASS: ${report.questions} option sets; ${report.files.length} audio files; 46 + 25 + 33 entries per script + 16 katakana extended.`);

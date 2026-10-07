@@ -16,7 +16,13 @@
 
 - `node verify.js` — 음성 누락, 보기 중복, 닮은 글자·박자 데이터 검사
 - `python build-strokes.py` — KanjiVG에서 가나 SVG를 받아 `stroke-data.js`(필순 데이터)를 만듭니다.
-- `sw.js` — 오프라인용 서비스 워커. 앱 파일을 바꿔 배포할 때 `VERSION`을 올리세요.
+- `sw.js` — 오프라인용 서비스 워커. 배포할 때 고칠 필요가 없습니다. 앱 파일은 온라인이면 매번 최신본을 확인해 저장하고, 음성은 `audio-map.js`와 비교해 새 파일만 받습니다.
+
+### 배포 규칙
+
+1. 음성 파일은 번호를 바꾸거나 덮어쓰지 않습니다. 새 문장은 `audio-texts.json` 끝에 추가해 새 번호로 만듭니다(`generate-audio.py`가 이렇게 동작합니다). 같은 번호의 파일을 바꾸면 이미 저장한 기기에는 반영되지 않습니다.
+2. `index.html`에 새 파일(스크립트, 스타일, 아이콘)을 연결하면 `sw.js`의 `CORE` 목록에도 추가합니다. 빠뜨리면 `node verify.js`가 알려 줍니다.
+3. 배포 전에 `node verify.js`를 실행합니다.
 - `python generate-audio.py` — `audio-texts.json`의 문장으로 `audio/` 음성과 `audio-map.js` 생성 (edge-tts 필요, 이미 있는 파일은 건너뜀). 새 단어는 목록 끝에 추가하세요.
 
 ## 라이선스와 출처

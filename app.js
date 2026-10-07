@@ -444,7 +444,12 @@ window.addEventListener('appinstalled',()=>{$('install-app').hidden=true;});
 // iPhone·iPad Safari에는 설치 창이 없어서 안내 버튼을 보여 줘요.
 if(/iphone|ipad|ipod/i.test(navigator.userAgent)&&!standalone()&&location.protocol.startsWith('http'))$('install-app').hidden=false;
 if('serviceWorker' in navigator&&location.protocol.startsWith('http')){
-  $('offline-status').textContent=' · 오프라인 준비 중…';
-  navigator.serviceWorker.register('sw.js').then(()=>navigator.serviceWorker.ready).then(()=>{$('offline-status').textContent=' · 오프라인 사용 준비 완료';}).catch(()=>{$('offline-status').textContent='';});
+  // 열 때마다 서비스 워커에 음성 목록을 맞추게 하고, 결과로 오프라인 준비 상태를 보여 줘요.
+  $('offline-status').textContent=' · 오프라인 저장 중…';
+  navigator.serviceWorker.addEventListener('message',event=>{
+    if(event.data?.type!=='audio-synced')return;
+    $('offline-status').textContent=event.data.ok?' · 오프라인 사용 준비 완료':(navigator.onLine?' · 오프라인 저장을 마치지 못했어요. 다시 열면 이어서 저장해요.':' · 오프라인 모드');
+  });
+  navigator.serviceWorker.register('sw.js').then(()=>navigator.serviceWorker.ready).then(registration=>registration.active.postMessage('sync-audio')).catch(()=>{$('offline-status').textContent='';});
 }
 renderStudy();refreshVoices();voiceTimer=setTimeout(refreshVoices,1500);
