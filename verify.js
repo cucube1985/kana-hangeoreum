@@ -25,6 +25,11 @@ const report=vm.runInContext(`(() => {
       if(options.length!==4||new Set(options.map(x=>x.romaji)).size!==4)issues.push('Similar options: '+currentChar(item));
       if(!similarItems(item).some(i=>chars.includes(currentChar(i))))issues.push('No similar distractor: '+currentChar(item));
     }
+    state.quizType='match';
+    for(const item of eligiblePool()){
+      const options=distractors(item,similarItems(item,otherScript()));questions++;
+      if(options.length!==4||new Set(options.map(x=>x.romaji)).size!==4||new Set(options.map(optionChar)).size!==4)issues.push('Match options: '+currentChar(item));
+    }
     // 1글자 문제에는 요음 보기가 섞이지 않아야 해요 (전체 범위).
     if(range==='all')for(const item of pool().filter(i=>i.group!=='combo'))if(distractors(item).some(o=>o.group==='combo'))issues.push('Mixed option length: '+currentChar(item));
   }

@@ -64,11 +64,16 @@ function speak(text){
   synthesis.speak(utterance);return true;
 }
 function speakKana(item){return speak(item.kata);}
-function similarGroupsFor(item){return SIMILAR_GROUPS[state.script].filter(([chars])=>chars.includes(currentChar(item)));}
-function similarItems(item){
-  const chars=new Set(similarGroupsFor(item).flatMap(([chars])=>chars));chars.delete(currentChar(item));
-  return KANA_DATA.filter(i=>chars.has(currentChar(i)));
+function similarGroupsFor(item,script=state.script){return SIMILAR_GROUPS[script].filter(([chars])=>chars.includes(item[script]));}
+function similarItems(item,script=state.script){
+  const chars=new Set(similarGroupsFor(item,script).flatMap(([chars])=>chars));chars.delete(item[script]);
+  return KANA_DATA.filter(i=>chars.has(i[script]));
 }
+const otherScript = () => state.script==='hira'?'kata':'hira';
+// 보기에 보일 글자: 짝 맞추기 문제는 다른 문자로 보여요.
+const optionChar = item => state.quizType==='match'?otherChar(item):currentChar(item);
+// 소리 없이 풀기를 켜면 읽기 문제의 보기에 로마자를 바로 보여 줘요.
+const silentReading = () => state.quizType==='reading'&&$('silent-reading').checked;
 function noteFor(item){
   let note='';
   if(item.hira==='を')note='を는 보통 ‘오’로 읽으며 목적어를 나타내는 조사로 써요. 로마자 wo로 적기도 해요.';
@@ -152,7 +157,8 @@ function eligiblePool(type=state.quizType){
   return pool();
 }
 function updateStartButton(){
-  const needsAudio=['reading','listening'].includes(state.quizType),available=eligiblePool().length;
+  const needsAudio=state.quizType==='listening'||(state.quizType==='reading'&&!silentReading()),available=eligiblePool().length;
+  $('silent-option').hidden=state.quizType!=='reading';
   $('start-quiz').disabled=(needsAudio&&!japaneseVoices.length&&!hasRecordedAudio)||!available;
   const omitted=pool().length-available;
   let note='';
@@ -169,7 +175,7 @@ function renderProgressSummary(){
 }
 function resetQuiz(){state.quiz=null;$('quiz-setup').hidden=false;$('quiz-session').hidden=true;$('quiz-results').hidden=true;updateStartButton();}
 function startQuiz(items){
-  if(['reading','listening'].includes(state.quizType)&&!japaneseVoices.length&&!hasRecordedAudio){refreshVoices();return;}
+  if((state.quizType==='listening'||(state.quizType==='reading'&&!silentReading()))&&!japaneseVoices.length&&!hasRecordedAudio){refreshVoices();return;}
   const available=items||eligiblePool(),count=Number($('question-count').value)||available.length;
   const ordered=!items&&$('weak-first').checked?weightedShuffle(available,i=>LEVEL_WEIGHT[levelOf(i)]):shuffle(available);
   state.quiz={items:shuffle(ordered.slice(0,Math.min(count,available.length))),index:0,correct:0,mistakes:[],answered:false,options:[]};
@@ -184,14 +190,17 @@ function distractors(item,preferred=[]){
   return shuffle([item,...unique]);
 }
 function renderQuestion(){
-  stopAudio();const q=state.quiz,item=q.items[q.index],example=currentExample(item);q.answered=false;q.options=distractors(item,state.quizType==='similar'?similarItems(item):[]);
-  $('question-label').textContent=({reading:'읽는 법 고르기',listening:'듣고 문자 고르기',word:'단어 빈칸 채우기',similar:'닮은 글자 구별'}[state.quizType])+' · '+(q.index+1)+' / '+q.items.length;
+  stopAudio();const q=state.quiz,item=q.items[q.index],example=currentExample(item);q.answered=false;q.options=distractors(item,state.quizType==='similar'?similarItems(item):state.quizType==='match'?similarItems(item,otherScript()):[]);
+  $('question-label').textContent=({reading:'읽는 법 고르기',listening:'듣고 문자 고르기',word:'단어 빈칸 채우기',similar:'닮은 글자 구별',match:'히라·가타 짝 맞추기'}[state.quizType])+' · '+(q.index+1)+' / '+q.items.length;
   $('quiz-progress').style.width=(q.index/q.items.length*100)+'%';$('score-label').textContent='현재 '+q.correct+'문제 정답';
   $('feedback').replaceChildren();$('next-question').hidden=true;
   const display=$('question-display');display.replaceChildren();display.className='';
   if(state.quizType==='reading'){
     $('question-prompt').textContent='이 글자는 어떤 소리로 읽을까요?';display.textContent=currentChar(item);
-    $('question-hint').textContent='각 보기의 ▶ 버튼을 듣고, 맞는 발음을 선택하세요.';
+    $('question-hint').textContent=silentReading()?'보기의 로마자와 한글 발음 중 맞는 것을 골라요.':'각 보기의 ▶ 버튼을 듣고, 맞는 발음을 선택하세요.';
+  }else if(state.quizType==='match'){
+    $('question-prompt').textContent='같은 소리의 '+(state.script==='hira'?'가타카나':'히라가나')+'를 골라요.';display.textContent=currentChar(item);
+    $('question-hint').textContent='모양이 닮은 글자가 섞여 있을 수 있어요.';
   }else if(state.quizType==='listening'){
     $('question-prompt').textContent='발음을 듣고 맞는 글자를 골라요.';const button=document.createElement('button');button.className='primary question-speaker';button.textContent='♫ 문제 발음 듣기';button.onclick=()=>speakKana(item);display.append(button);
     $('question-hint').textContent='필요한 만큼 다시 들을 수 있어요.';
@@ -206,10 +215,10 @@ function renderQuestion(){
     const button=document.createElement('button');button.className='text-button';button.textContent='▶ 단어 듣기';button.onclick=()=>speak(example.word);$('question-hint').append(' · ',button);
   }
   const options=$('answer-options');options.replaceChildren();
-  const lockAudio=['listening','similar'].includes(state.quizType);
+  const lockAudio=['listening','similar','match'].includes(state.quizType);
   q.options.forEach((option,index)=>{
     const wrapper=document.createElement('div');wrapper.className='answer-option';wrapper.dataset.id=option.id;
-    const answer=document.createElement('button');answer.className='answer-main';answer.innerHTML='<span class="option-number">'+(index+1)+'</span><span class="option-label">'+(state.quizType==='reading'?'발음 '+(index+1):currentChar(option))+'</span>';answer.onclick=()=>answerQuestion(option.id);
+    const answer=document.createElement('button');answer.className='answer-main';answer.innerHTML='<span class="option-number">'+(index+1)+'</span><span class="option-label">'+(state.quizType==='reading'?(silentReading()?escapeHtml(option.romaji+' · '+option.ko):'발음 '+(index+1)):optionChar(option))+'</span>';answer.onclick=()=>answerQuestion(option.id);
     const play=document.createElement('button');play.className='option-audio';play.textContent='▶';play.setAttribute('aria-label','보기 '+(index+1)+' 발음 듣기');play.onclick=()=>speakKana(option);
     play.disabled=lockAudio;play.title=lockAudio?'정답 확인 후 발음을 들을 수 있어요.':'발음 듣기';wrapper.append(answer,play);options.append(wrapper);
   });
@@ -224,10 +233,10 @@ function answerQuestion(id){
     const option=KANA_DATA[Number(wrapper.dataset.id)];wrapper.querySelector('.answer-main').disabled=true;wrapper.classList.add('answer-locked');wrapper.querySelector('.option-audio').disabled=false;
     if(option.id===item.id)wrapper.classList.add('correct');else if(option.id===id)wrapper.classList.add('wrong');
     if(state.quizType==='reading')wrapper.querySelector('.option-label').textContent=option.romaji+' · '+option.ko;
-    if(state.quizType==='similar')wrapper.querySelector('.option-label').innerHTML=escapeHtml(currentChar(option))+'<small class="reading-note"> '+escapeHtml(option.romaji)+'</small>';
+    if(['similar','match'].includes(state.quizType))wrapper.querySelector('.option-label').innerHTML=escapeHtml(optionChar(option))+'<small class="reading-note"> '+escapeHtml(option.romaji)+'</small>';
   });
   const similarTip=state.quizType==='similar'?similarGroupsFor(item).map(([,text])=>text).join(' '):'';
-  $('feedback').innerHTML='<strong class="'+(correct?'success':'failure')+'">'+(correct?'정답이에요!':'조금 아쉬워요. 함께 다시 익혀요.')+'</strong><span lang="ja">'+escapeHtml(currentChar(item))+'</span> = '+escapeHtml(item.romaji)+' · '+escapeHtml(item.ko)+'<br><span lang="ja">'+highlightedWord(item)+'</span> ('+escapeHtml(example.reading)+') · '+escapeHtml(example.meaning)+(similarTip?'<br>구별 요령: '+escapeHtml(similarTip):noteFor(item)?'<br>'+escapeHtml(noteFor(item)):'');
+  $('feedback').innerHTML='<strong class="'+(correct?'success':'failure')+'">'+(correct?'정답이에요!':'조금 아쉬워요. 함께 다시 익혀요.')+'</strong><span lang="ja">'+escapeHtml(currentChar(item))+(state.quizType==='match'?' = '+escapeHtml(otherChar(item)):'')+'</span> = '+escapeHtml(item.romaji)+' · '+escapeHtml(item.ko)+'<br><span lang="ja">'+highlightedWord(item)+'</span> ('+escapeHtml(example.reading)+') · '+escapeHtml(example.meaning)+(similarTip?'<br>구별 요령: '+escapeHtml(similarTip):noteFor(item)?'<br>'+escapeHtml(noteFor(item)):'');
   const play=document.createElement('button');play.className='text-button';play.textContent='▶ 정답 듣기';play.onclick=()=>speakKana(item);$('feedback').append(play);
   $('score-label').textContent='현재 '+q.correct+'문제 정답';$('quiz-progress').style.width=((q.index+1)/q.items.length*100)+'%';
   $('next-question').hidden=false;$('next-question').textContent=q.index===q.items.length-1?'결과 보기 →':'다음 문제 →';
@@ -237,7 +246,7 @@ function showResults(){
   const results=$('quiz-results');results.innerHTML='<span class="eyebrow">오늘의 연습 완료</span><h2>'+(q.correct===q.items.length?'모두 맞혔어요!':'한 걸음 더 익숙해졌어요.')+'</h2><div class="result-score">'+q.correct+'<small> / '+q.items.length+'</small></div><p class="result-caption">정답률 '+Math.round(q.correct/q.items.length*100)+'%'+(q.mistakes.length?' · 헷갈렸던 '+q.mistakes.length+'개를 다시 들어 보세요.':' · 다른 문자나 문제 유형에도 도전해 보세요.')+'</p>';
   if(q.mistakes.length){
     const list=document.createElement('div');list.className='review-list';list.innerHTML='<h3>다시 익힐 글자</h3>';
-    q.mistakes.forEach(({item,chosen})=>{const example=currentExample(item),row=document.createElement('div');row.className='review-item';row.innerHTML='<span lang="ja">'+escapeHtml(currentChar(item))+'</span><div>'+escapeHtml(item.romaji)+' · '+escapeHtml(item.ko)+'<small>내 선택: '+escapeHtml(currentChar(chosen))+' ('+escapeHtml(chosen.romaji)+')<br>'+escapeHtml(example.word)+' · '+escapeHtml(example.meaning)+'</small></div>';const play=document.createElement('button');play.className='outline';play.textContent='▶ 듣기';play.onclick=()=>speakKana(item);row.append(play);list.append(row);});results.append(list);
+    q.mistakes.forEach(({item,chosen})=>{const example=currentExample(item),row=document.createElement('div');row.className='review-item';row.innerHTML='<span lang="ja">'+escapeHtml(currentChar(item))+'</span><div>'+escapeHtml(item.romaji)+' · '+escapeHtml(item.ko)+'<small>내 선택: '+escapeHtml(optionChar(chosen))+' ('+escapeHtml(chosen.romaji)+')<br>'+escapeHtml(example.word)+' · '+escapeHtml(example.meaning)+'</small></div>';const play=document.createElement('button');play.className='outline';play.textContent='▶ 듣기';play.onclick=()=>speakKana(item);row.append(play);list.append(row);});results.append(list);
   }
   const actions=document.createElement('div');actions.className='result-actions';
   if(q.mistakes.length){const retry=document.createElement('button');retry.className='primary';retry.textContent='틀린 글자만 다시 풀기';retry.onclick=()=>startQuiz(q.mistakes.map(m=>m.item));actions.append(retry);}
@@ -324,6 +333,7 @@ $('speed').onchange=()=>saveSetting('speed',$('speed').value);
 $('voice').onchange=()=>saveSetting('voice',$('voice').value);
 $('question-count').onchange=()=>saveSetting('count',$('question-count').value);
 $('weak-first').onchange=()=>saveSetting('weakFirst',$('weak-first').checked);
+$('silent-reading').onchange=()=>{saveSetting('silentReading',$('silent-reading').checked);updateStartButton();};
 $('reset-progress').onclick=()=>{if(!confirm('글자별 풀이 기록과 박자 연습 기록을 모두 지울까요? 설정은 그대로 남아요.'))return;store.stats={};store.beat={correct:0,total:0};saveStore();updateStartButton();renderStudy();};
 $('prev-char').onclick=()=>moveCharacter(-1);$('next-char').onclick=()=>moveCharacter(1);
 $('play-char').onclick=()=>speakKana(KANA_DATA[state.selected]);$('play-word').onclick=()=>speak(currentExample(KANA_DATA[state.selected]).word);
@@ -347,6 +357,7 @@ window.addEventListener('beforeunload',stopAudio);
   if([...$('speed').options].some(o=>o.value===s.speed))$('speed').value=s.speed;
   if([...$('question-count').options].some(o=>o.value===s.count))$('question-count').value=s.count;
   if(typeof s.weakFirst==='boolean')$('weak-first').checked=s.weakFirst;
-  if(['reading','listening','word','similar'].includes(s.quizType))setQuizType(s.quizType);
+  if(typeof s.silentReading==='boolean')$('silent-reading').checked=s.silentReading;
+  if(['reading','listening','word','similar','match'].includes(s.quizType))setQuizType(s.quizType);
 })();
 renderStudy();refreshVoices();voiceTimer=setTimeout(refreshVoices,1500);
