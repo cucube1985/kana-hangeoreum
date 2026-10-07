@@ -8,14 +8,15 @@ const source=fs.readFileSync('app.js','utf8');
 vm.runInContext(source.slice(0,source.indexOf("$('learn-tab').onclick")),context);
 const report=vm.runInContext(`(() => {
   const issues=[]; let questions=0;
-  for(const script of ['hira','kata'])for(const range of ['basic','voiced','combo','all']){
-    state.script=script;state.range=range;
+  for(const script of ['hira','kata'])for(const range of ['basic','voiced','combo','extended','all']){
+    if(script==='hira'&&range==='extended')continue;
+    state.script=script;state.range=range;state.quizType='reading';
     for(const item of pool()){
       for(let attempt=0;attempt<10;attempt++){
         const options=distractors(item);questions++;
         if(options.length!==4||new Set(options.map(x=>x.romaji)).size!==4||options.filter(x=>x.id===item.id).length!==1)issues.push(item.hira);
       }
-      if(!AUDIO_FILES[item.kata]||!AUDIO_FILES[currentExample(item).word])issues.push('Missing audio: '+item.hira);
+      if(!AUDIO_FILES[item.kata]||!AUDIO_FILES[currentExample(item).word])issues.push('Missing audio: '+item.kata);
     }
     state.quizType='word';
     if(eligiblePool().some(item=>!currentExample(item).word.includes(currentChar(item))))issues.push('Invalid blank');
@@ -30,8 +31,8 @@ const report=vm.runInContext(`(() => {
       const options=distractors(item,similarItems(item,otherScript()));questions++;
       if(options.length!==4||new Set(options.map(x=>x.romaji)).size!==4||new Set(options.map(optionChar)).size!==4)issues.push('Match options: '+currentChar(item));
     }
-    // 1글자 문제에는 요음 보기가 섞이지 않아야 해요 (전체 범위).
-    if(range==='all')for(const item of pool().filter(i=>i.group!=='combo'))if(distractors(item).some(o=>o.group==='combo'))issues.push('Mixed option length: '+currentChar(item));
+    // 1글자 문제에는 요음·확장음 보기가 섞이지 않아야 해요 (전체 범위).
+    if(range==='all')for(const item of pool())if(distractors(item).some(o=>currentChar(o).length!==currentChar(item).length))issues.push('Mixed option length: '+currentChar(item));
   }
   for(const [script,groups] of Object.entries(SIMILAR_GROUPS))for(const [chars] of groups){
     const items=chars.map(c=>KANA_DATA.find(i=>i[script]===c));
@@ -45,6 +46,6 @@ const report=vm.runInContext(`(() => {
   return {issues,questions,files:Object.values(AUDIO_FILES),counts:KANA_DATA.reduce((a,x)=>(a[x.group]=(a[x.group]||0)+1,a),{})};
 })()`,context);
 assert.equal(report.issues.length,0,report.issues.join(', '));
-assert.equal(report.counts.basic,46);assert.equal(report.counts.voiced,25);assert.equal(report.counts.combo,33);
+assert.equal(report.counts.basic,46);assert.equal(report.counts.voiced,25);assert.equal(report.counts.combo,33);assert.equal(report.counts.extended,16);
 for(const file of report.files)assert.ok(fs.statSync(file).size>500,file);
-console.log(`PASS: ${report.questions} option sets; ${report.files.length} audio files; 46 + 25 + 33 entries per script.`);
+console.log(`PASS: ${report.questions} option sets; ${report.files.length} audio files; 46 + 25 + 33 entries per script + 16 katakana extended.`);

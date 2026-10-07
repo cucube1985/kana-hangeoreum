@@ -7,19 +7,23 @@
   <meta name="description" content="히라가나와 가타카나를 발음과 생활 단어로 배우고 세 가지 퀴즈로 연습하세요.">
   <title>가나 한 걸음 · 일본어 문자 연습</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%23176b58'/%3E%3Ctext x='32' y='46' text-anchor='middle' fill='white' font-size='45'%3Eあ%3C/text%3E%3C/svg%3E">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="가나 한 걸음">
   <link rel="stylesheet" href="style.css">
   <script src="kana-data.js" defer></script>
   <script src="audio-map.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
-  <header class="topbar"><a class="brand" href="./index.html"><span class="brand-icon" lang="ja">あ</span><span>가나 한 걸음<small>매일 조금씩, 일본어의 시작</small></span></a><span class="header-note">HIRAGANA & KATAKANA</span></header>
+  <header class="topbar"><a class="brand" href="./index.html"><span class="brand-icon" lang="ja">あ</span><span>가나 한 걸음<small>매일 조금씩, 일본어의 시작</small></span></a><div class="header-actions"><button id="install-app" class="install-button" hidden>⤓ 앱으로 설치</button><span class="header-note">HIRAGANA & KATAKANA</span></div></header>
   <main>
     <div class="intro"><div><span class="eyebrow">일본어 문자 연습장</span><h1>한 글자씩, 귀에 익히고<br>눈으로 기억해요.</h1><p>발음을 듣고, 생활 속 단어를 만나고, 문제로 확인하세요.</p></div><div class="intro-art" aria-hidden="true"><span>あ</span><span>ア</span><i>가볍게 시작하는 일본어</i></div></div>
     <nav class="mode-tabs" aria-label="학습 모드"><button id="learn-tab" class="active" aria-pressed="true">학습 모드 <span>듣고 익히기</span></button><button id="quiz-tab" aria-pressed="false">풀이 모드 <span>기억 확인하기</span></button><button id="beat-tab" aria-pressed="false">박자 익히기 <span>っ · ー · ゃ</span></button></nav>
     <section class="settings" aria-label="학습 설정">
       <div id="script-setting"><span class="setting-label">문자</span><div class="segmented" id="script-choice"><button data-script="hira" class="active" aria-pressed="true">히라가나</button><button data-script="kata" aria-pressed="false">가타카나</button></div></div>
-      <label id="range-setting"><span class="setting-label">학습 범위</span><select id="range"><option value="basic">기본 46자</option><option value="voiced">탁음 · 반탁음 25자</option><option value="combo">요음 33개</option><option value="all">전체 104개</option></select></label>
+      <label id="range-setting"><span class="setting-label">학습 범위</span><select id="range"><option value="basic">기본 46자</option><option value="voiced">탁음 · 반탁음 25자</option><option value="combo">요음 33개</option><option value="extended">가타카나 확장음 16개</option><option value="all">전체 104개</option></select></label>
       <label><span class="setting-label">읽기 속도</span><select id="speed"><option value="0.65">천천히</option><option value="0.85" selected>보통</option><option value="1">자연스럽게</option></select></label>
       <label class="voice-setting"><span class="setting-label">일본어 음성</span><select id="voice"><option value="">음성 확인 중…</option></select></label>
     </section>
@@ -41,7 +45,7 @@
       <div id="beat-lessons" class="beat-lessons"></div>
       <div id="beat-quiz" class="panel beat-quiz"></div>
     </section>
-    <footer><span>가나 한 걸음</span><span>소리 내어 따라 읽으면 더 오래 기억해요.</span></footer>
+    <footer><span>가나 한 걸음<span id="offline-status" class="offline-status"></span></span><span>소리 내어 따라 읽으면 더 오래 기억해요.</span></footer>
   </main>
 </body>
 </html>

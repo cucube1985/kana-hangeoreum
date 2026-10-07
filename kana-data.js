@@ -58,7 +58,15 @@ const KATA_EXAMPLES = [
 ['ろっぴゃく','roppyaku','육백 (히라가나 예시)'],['コンピューター','konpyūtā','컴퓨터'],['ピョンピョン','pyonpyon','깡충깡충']
 ];
 function toKatakana(text) { return [...text].map(c => { const n = c.charCodeAt(0); return n >= 0x3041 && n <= 0x3096 ? String.fromCharCode(n + 0x60) : c; }).join(''); }
-const KANA_DATA = HIRA_ROWS.map((row,index) => ({id:index,hira:row[0],kata:toKatakana(row[0]),romaji:row[1],ko:row[2],group:index<46?'basic':index<71?'voiced':'combo',hiraExample:{word:row[3],reading:row[4],meaning:row[5]},kataExample:{word:KATA_EXAMPLES[index][0],reading:KATA_EXAMPLES[index][1],meaning:KATA_EXAMPLES[index][2]}}));
+/* 가타카나 확장음: 외래어 소리를 적기 위한 가타카나 전용 조합. 각 행: 가타카나, 로마자, 한글 근사 발음, 예시 단어, 단어 읽기, 뜻. */
+const KATA_EXTENDED_ROWS = [
+['ファ','fa','파 (f)','ファイル','fairu','파일'],['フィ','fi','피 (f)','フィルム','firumu','필름'],['フェ','fe','페 (f)','カフェ','kafe','카페'],['フォ','fo','포 (f)','フォーク','fōku','포크'],
+['ティ','ti','티','パーティー','pātī','파티'],['ディ','di','디','キャンディー','kyandī','사탕'],['トゥ','tu','투','タトゥー','tatū','타투, 문신'],['デュ','dyu','듀','デュエット','dyuetto','듀엣'],
+['シェ','she','셰','シェフ','shefu','셰프, 요리사'],['チェ','che','체','チェック','chekku','체크, 확인'],['ジェ','je','제','ジェラート','jerāto','젤라토'],['ウィ','wi','위','ウィンク','winku','윙크'],
+['ウェ','we','웨','ウェブ','webu','웹'],['ウォ','wo','워','ウォーキング','wōkingu','걷기 운동'],['ヴァ','va','바 (v)','ヴァイオリン','vaiorin','바이올린'],['ヴィ','vi','비 (v)','ヴィンテージ','vintēji','빈티지']
+];
+const KANA_DATA = HIRA_ROWS.map((row,index) => ({id:index,hira:row[0],kata:toKatakana(row[0]),romaji:row[1],ko:row[2],group:index<46?'basic':index<71?'voiced':'combo',hiraExample:{word:row[3],reading:row[4],meaning:row[5]},kataExample:{word:KATA_EXAMPLES[index][0],reading:KATA_EXAMPLES[index][1],meaning:KATA_EXAMPLES[index][2]}}))
+  .concat(KATA_EXTENDED_ROWS.map((row,index) => ({id:HIRA_ROWS.length+index,hira:null,kata:row[0],romaji:row[1],ko:row[2],group:'extended',hiraExample:null,kataExample:{word:row[3],reading:row[4],meaning:row[5]}})));
 /* 모양이 닮아 헷갈리기 쉬운 글자 묶음과 구별 요령. */
 const SIMILAR_GROUPS = {
   hira: [

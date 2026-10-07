@@ -21,7 +21,10 @@ function stopAudio(){if(activeAudio){activeAudio.pause();activeAudio=null;}synth
 const currentChar = item => item[state.script];
 const otherChar = item => item[state.script==='hira'?'kata':'hira'];
 const currentExample = item => item[state.script+'Example'];
-const pool = () => KANA_DATA.filter(item => state.range === 'all' || item.group === state.range);
+// 확장음은 가타카나 전용이라 히라가나 모드에서는 빠져요.
+const pool = () => KANA_DATA.filter(item => (state.range === 'all' || item.group === state.range) && item[state.script]);
+const RANGE_TITLES = {basic:'기본표',voiced:'탁음 · 반탁음',combo:'요음',extended:'확장음',all:'전체표'};
+const GROUP_LABELS = {basic:'기본 46자',voiced:'탁음 · 반탁음 25자',combo:'요음 33개',extended:'확장음 16개 (가타카나 전용)'};
 const escapeHtml = text => String(text).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const shuffle = items => {const a=[...items];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
 // 가중치가 클수록 앞쪽에 올 확률이 높은 무작위 정렬 (Efraimidis–Spirakis).
@@ -86,6 +89,11 @@ function noteFor(item){
   if(['ざ','じゃ'].includes(item.hira))note='ざ(za)와 じゃ(ja)는 둘 다 ‘자’에 가깝게 들려요. じゃ는 혀를 입천장에 더 붙여 ‘쟈’처럼 내요.';
   if(['ぞ','じょ'].includes(item.hira))note='ぞ(zo)와 じょ(jo)는 둘 다 ‘조’에 가깝게 들려요. じょ는 ‘죠’처럼 혀를 입천장에 붙여요.';
   if(item.hira==='じゅ')note='じゅ(ju)는 ‘쥬’처럼 혀를 입천장에 붙여요. ず(zu, 즈)와 구별해요.';
+  if(item.group==='extended'){
+    note='외래어 소리를 적기 위해 작은 ァ·ィ·ゥ·ェ·ォ를 앞 글자에 붙여 한 박자로 읽어요.';
+    if(item.kata.startsWith('フ'))note+=' f 소리는 윗니를 쓰지 않고, ふ처럼 입술 사이로 바람을 내보내요.';
+    if(item.kata.startsWith('ヴ'))note+=' ヴ는 v 소리를 적지만, 일본어에서는 보통 バ행(b)과 같이 발음해요.';
+  }
   if(item.group==='combo')note+=(note?' ':'')+'작은 ゃ·ゅ·ょ / ャ·ュ·ョ를 앞 글자와 붙여 한 박자로 읽어요.';
   if(!currentExample(item).word.includes(currentChar(item)))note+=(note?' ':'')+(state.script==='kata'?'이 글자의 일상적인 가타카나 단어는 드물어, 대응하는 히라가나 예시로 익혀요.':'이 글자로 쓰는 일상적인 히라가나 단어는 드물어, 대응하는 가타카나 예시로 익혀요.');
   return note;
@@ -108,12 +116,12 @@ function selectCharacter(id){
 function renderStudy(){
   const items=pool();if(!items.some(i=>i.id===state.selected))state.selected=items[0].id;
   const item=KANA_DATA[state.selected],position=items.findIndex(i=>i.id===item.id);
-  $('alphabet-title').textContent=(state.script==='hira'?'히라가나':'가타카나')+' '+({basic:'기본표',voiced:'탁음 · 반탁음',combo:'요음',all:'전체표'}[state.range]);
-  $('letter-count').textContent=items.length+(state.range==='combo'||state.range==='all'?'개':'자');
-  const grid=$('kana-grid');grid.replaceChildren();grid.style.gridTemplateColumns=state.range==='combo'?'repeat(3,1fr)':'repeat(5,1fr)';
+  $('alphabet-title').textContent=(state.script==='hira'?'히라가나':'가타카나')+' '+RANGE_TITLES[state.range];
+  $('letter-count').textContent=items.length+(['combo','extended','all'].includes(state.range)?'개':'자');
+  const grid=$('kana-grid');grid.replaceChildren();grid.style.gridTemplateColumns=state.range==='combo'?'repeat(3,1fr)':state.range==='extended'?'repeat(4,1fr)':'repeat(5,1fr)';
   let lastGroup='';
   items.forEach(i=>{
-    if(state.range==='all'&&i.group!==lastGroup){const title=document.createElement('div');title.className='row-label';title.textContent={basic:'기본 46자',voiced:'탁음 · 반탁음 25자',combo:'요음 33개'}[i.group];grid.append(title);lastGroup=i.group;}
+    if(state.range==='all'&&i.group!==lastGroup){const title=document.createElement('div');title.className='row-label';title.textContent=GROUP_LABELS[i.group];grid.append(title);lastGroup=i.group;}
     // 오십음도에서 や・ゆ・よ / わ・を・ん은 실제 자리로 배치합니다.
     const addGap=()=>{const gap=document.createElement('div');gap.className='grid-gap';gap.setAttribute('aria-hidden','true');grid.append(gap);};
     if(i.group==='basic'&&['ゆ','よ'].includes(i.hira))addGap();
@@ -139,7 +147,7 @@ function renderStudy(){
   $('study-record').textContent=recordText(item);
   const example=currentExample(item);$('example-reading').textContent=example.reading;$('example-meaning').textContent=example.meaning;
   $('prev-char').disabled=position===0;$('next-char').disabled=position===items.length-1;
-  $('study-tip-text').textContent=state.script==='hira'?'히라가나는 일본어의 기본 문자예요. 예시 단어는 읽기 연습을 위해 가나로 적었으며, 실제로는 한자를 쓰는 단어도 있어요. 빵·펜 같은 외래어는 보통 가타카나로 적어요.':'가타카나는 외래어·외국 이름·의성어 등에 써요. ー는 앞 모음을 한 박자 더 늘이는 장음 기호예요. 일부 드문 글자는 대응하는 히라가나 예시를 함께 보여 줘요.';
+  $('study-tip-text').textContent=state.script==='hira'?'히라가나는 일본어의 기본 문자예요. 예시 단어는 읽기 연습을 위해 가나로 적었으며, 실제로는 한자를 쓰는 단어도 있어요. 빵·펜 같은 외래어는 보통 가타카나로 적어요.':'가타카나는 외래어·외국 이름·의성어 등에 써요. ー는 앞 모음을 한 박자 더 늘이는 장음 기호예요. ファ·ティ 같은 확장음은 원래 일본어에 없던 외래어 소리를 적을 때 써요. 일부 드문 글자는 대응하는 히라가나 예시를 함께 보여 줘요.';
 }
 function moveCharacter(step){const items=pool(),index=items.findIndex(i=>i.id===state.selected),next=index+step;if(next>=0&&next<items.length){state.selected=items[next].id;stopAudio();renderStudy();}}
 function setMode(mode){
@@ -154,6 +162,7 @@ function setMode(mode){
 function eligiblePool(type=state.quizType){
   if(type==='word')return pool().filter(item=>currentExample(item).word.includes(currentChar(item)));
   if(type==='similar')return pool().filter(item=>similarGroupsFor(item).length);
+  if(type==='match')return pool().filter(item=>item.hira&&item.kata);
   return pool();
 }
 function updateStartButton(){
@@ -163,7 +172,9 @@ function updateStartButton(){
   const omitted=pool().length-available;
   let note='';
   if(state.quizType==='word'&&omitted)note=`현재 범위에서 다른 문자 표기로 예시를 제공하는 ${omitted}개는 빈칸 문제에서 제외해요.`;
-  if(state.quizType==='similar')note=available?`현재 범위에서 닮은 글자가 있는 ${available}개로 문제를 내요.`:'요음 범위에는 닮은 글자 문제가 없어요. 기본표나 전체를 골라 주세요.';
+  if(state.quizType==='similar')note=available?`현재 범위에서 닮은 글자가 있는 ${available}개로 문제를 내요.`:'요음·확장음 범위에는 닮은 글자 문제가 없어요. 기본표나 전체를 골라 주세요.';
+  if(state.quizType==='match'&&!available)note='확장음은 히라가나 짝이 없어서 짝 맞추기 문제를 낼 수 없어요. 다른 범위를 골라 주세요.';
+  else if(state.quizType==='match'&&omitted)note=`히라가나 짝이 없는 확장음 ${omitted}개는 짝 맞추기에서 제외해요.`;
   $('quiz-scope-note').textContent=note;
   renderProgressSummary();
 }
@@ -183,8 +194,8 @@ function startQuiz(items){
 }
 // 같은 종류(1글자 / 요음)의 보기를 먼저 고르고, 발음이 같은 글자는 함께 내지 않아요.
 function distractors(item,preferred=[]){
-  const isCombo=i=>i.group==='combo';
-  const rest=shuffle(pool().filter(i=>i.id!==item.id)).sort((a,b)=>(isCombo(a)!==isCombo(item))-(isCombo(b)!==isCombo(item)));
+  const isCombo=i=>currentChar(i).length>1;
+  const rest=shuffle((state.quizType==='match'?eligiblePool('match'):pool()).filter(i=>i.id!==item.id)).sort((a,b)=>(isCombo(a)!==isCombo(item))-(isCombo(b)!==isCombo(item)));
   const unique=[],seen=new Set([item.romaji]);
   for(const candidate of [...shuffle(preferred),...rest]){if(!seen.has(candidate.romaji)){seen.add(candidate.romaji);unique.push(candidate);}if(unique.length===3)break;}
   return shuffle([item,...unique]);
@@ -327,7 +338,14 @@ function nextBeat(){
 $('learn-tab').onclick=()=>setMode('learn');$('quiz-tab').onclick=()=>setMode('quiz');$('beat-tab').onclick=()=>setMode('beat');
 function setScript(script){state.script=script;document.querySelectorAll('[data-script]').forEach(b=>{b.classList.toggle('active',b.dataset.script===script);b.setAttribute('aria-pressed',String(b.dataset.script===script));});}
 function setQuizType(type){state.quizType=type;document.querySelectorAll('[data-type]').forEach(b=>{b.classList.toggle('active',b.dataset.type===type);b.setAttribute('aria-pressed',String(b.dataset.type===type));});}
-document.querySelectorAll('[data-script]').forEach(button=>button.onclick=()=>{stopAudio();setScript(button.dataset.script);saveSetting('script',state.script);renderStudy();resetQuiz();});
+// 범위 목록에 글자 수를 표시하고, 히라가나에서는 확장음 범위를 막아요.
+function updateRangeOptions(){
+  const extended=$('range').querySelector('[value=extended]'),all=$('range').querySelector('[value=all]');
+  extended.disabled=state.script==='hira';extended.textContent='가타카나 확장음 16개'+(state.script==='hira'?' (가타카나 전용)':'');
+  all.textContent='전체 '+KANA_DATA.filter(i=>i[state.script]).length+'개';
+  if(state.script==='hira'&&state.range==='extended'){state.range='basic';$('range').value='basic';}
+}
+document.querySelectorAll('[data-script]').forEach(button=>button.onclick=()=>{stopAudio();setScript(button.dataset.script);updateRangeOptions();saveSetting('script',state.script);saveSetting('range',state.range);renderStudy();resetQuiz();});
 $('range').onchange=()=>{stopAudio();state.range=$('range').value;saveSetting('range',state.range);renderStudy();resetQuiz();};
 $('speed').onchange=()=>saveSetting('speed',$('speed').value);
 $('voice').onchange=()=>saveSetting('voice',$('voice').value);
@@ -353,11 +371,27 @@ window.addEventListener('beforeunload',stopAudio);
 (function restoreSettings(){
   const s=store.settings;
   if(['hira','kata'].includes(s.script))setScript(s.script);
-  if(['basic','voiced','combo','all'].includes(s.range)){state.range=s.range;$('range').value=s.range;}
+  if(['basic','voiced','combo','extended','all'].includes(s.range)){state.range=s.range;$('range').value=s.range;}
+  updateRangeOptions();
   if([...$('speed').options].some(o=>o.value===s.speed))$('speed').value=s.speed;
   if([...$('question-count').options].some(o=>o.value===s.count))$('question-count').value=s.count;
   if(typeof s.weakFirst==='boolean')$('weak-first').checked=s.weakFirst;
   if(typeof s.silentReading==='boolean')$('silent-reading').checked=s.silentReading;
   if(['reading','listening','word','similar','match'].includes(s.quizType))setQuizType(s.quizType);
 })();
+// ---- 앱 설치와 오프라인 ----
+let installPrompt=null;
+const standalone=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();installPrompt=event;$('install-app').hidden=false;});
+$('install-app').onclick=async()=>{
+  if(installPrompt){installPrompt.prompt();await installPrompt.userChoice.catch(()=>{});installPrompt=null;$('install-app').hidden=true;return;}
+  alert('Safari 아래쪽의 공유 버튼(□↑)을 누른 뒤 ‘홈 화면에 추가’를 선택하세요.');
+};
+window.addEventListener('appinstalled',()=>{$('install-app').hidden=true;});
+// iPhone·iPad Safari에는 설치 창이 없어서 안내 버튼을 보여 줘요.
+if(/iphone|ipad|ipod/i.test(navigator.userAgent)&&!standalone()&&location.protocol.startsWith('http'))$('install-app').hidden=false;
+if('serviceWorker' in navigator&&location.protocol.startsWith('http')){
+  $('offline-status').textContent=' · 오프라인 준비 중…';
+  navigator.serviceWorker.register('sw.js').then(()=>navigator.serviceWorker.ready).then(()=>{$('offline-status').textContent=' · 오프라인 사용 준비 완료';}).catch(()=>{$('offline-status').textContent='';});
+}
 renderStudy();refreshVoices();voiceTimer=setTimeout(refreshVoices,1500);
