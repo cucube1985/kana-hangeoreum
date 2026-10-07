@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#176b58">
+  <meta name="description" content="히라가나와 가타카나를 발음과 생활 단어로 배우고 세 가지 퀴즈로 연습하세요.">
+  <title>가나 한 걸음 · 일본어 문자 연습</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%23176b58'/%3E%3Ctext x='32' y='46' text-anchor='middle' fill='white' font-size='45'%3Eあ%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+  <script src="kana-data.js" defer></script>
+  <script src="audio-map.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="topbar"><a class="brand" href="./index.html"><span class="brand-icon" lang="ja">あ</span><span>가나 한 걸음<small>매일 조금씩, 일본어의 시작</small></span></a><span class="header-note">HIRAGANA & KATAKANA</span></header>
+  <main>
+    <div class="intro"><div><span class="eyebrow">일본어 문자 연습장</span><h1>한 글자씩, 귀에 익히고<br>눈으로 기억해요.</h1><p>발음을 듣고, 생활 속 단어를 만나고, 문제로 확인하세요.</p></div><div class="intro-art" aria-hidden="true"><span>あ</span><span>ア</span><i>가볍게 시작하는 일본어</i></div></div>
+    <nav class="mode-tabs" aria-label="학습 모드"><button id="learn-tab" class="active" aria-pressed="true">학습 모드 <span>듣고 익히기</span></button><button id="quiz-tab" aria-pressed="false">풀이 모드 <span>기억 확인하기</span></button><button id="beat-tab" aria-pressed="false">박자 익히기 <span>っ · ー · ゃ</span></button></nav>
+    <section class="settings" aria-label="학습 설정">
+      <div id="script-setting"><span class="setting-label">문자</span><div class="segmented" id="script-choice"><button data-script="hira" class="active" aria-pressed="true">히라가나</button><button data-script="kata" aria-pressed="false">가타카나</button></div></div>
+      <label id="range-setting"><span class="setting-label">학습 범위</span><select id="range"><option value="basic">기본 46자</option><option value="voiced">탁음 · 반탁음 25자</option><option value="combo">요음 33개</option><option value="all">전체 104개</option></select></label>
+      <label><span class="setting-label">읽기 속도</span><select id="speed"><option value="0.65">천천히</option><option value="0.85" selected>보통</option><option value="1">자연스럽게</option></select></label>
+      <label class="voice-setting"><span class="setting-label">일본어 음성</span><select id="voice"><option value="">음성 확인 중…</option></select></label>
+    </section>
+    <p id="audio-status" class="audio-status" role="status"></p>
+    <section id="learn-panel" aria-labelledby="learn-tab">
+      <div class="learning-layout">
+        <section class="alphabet panel"><div class="panel-heading"><div><span class="eyebrow">01 / 글자 고르기</span><h2 id="alphabet-title">히라가나 기본표</h2></div><span class="count" id="letter-count">46자</span></div><p class="muted">글자를 누르면 발음과 예시 단어를 볼 수 있어요.</p><div id="kana-grid" class="kana-grid"></div><p class="grid-legend"><span class="legend-dot mastered"></span>익힌 글자 (3번 연속 정답) <span class="legend-dot weak"></span>다시 볼 글자 (최근에 틀림)</p></section>
+        <section class="flashcard panel" aria-label="선택한 문자"><div class="card-top"><span class="eyebrow">02 / 듣고 익히기</span><span id="card-position" class="muted"></span></div><div id="study-char" class="study-char" lang="ja">あ</div><div id="study-reading" class="study-reading"></div><button id="play-char" class="primary sound">▶ 글자 발음 듣기</button><p id="char-note" class="char-note"></p><div id="similar-chars" class="similar-chars"></div><div class="word-example"><span class="setting-label">기억에 남는 생활 단어</span><div id="example-word" lang="ja"></div><div id="example-reading" class="muted"></div><div id="example-meaning"></div><button id="play-word" class="text-button">▶ 예시 단어 듣기</button></div><p id="study-record" class="study-record"></p><div class="card-nav"><button id="prev-char" class="outline">← 이전</button><span>← → 키로 이동</span><button id="next-char" class="outline">다음 →</button></div></section>
+      </div>
+      <div class="study-tip"><span>알아두면 좋아요</span><p id="study-tip-text"></p><p>한글은 발음의 근사치예요. 일본어 소리를 듣고 따라 해 보세요.</p></div>
+    </section>
+    <section id="quiz-panel" hidden aria-labelledby="quiz-tab">
+      <div id="quiz-setup" class="panel quiz-setup"><span class="eyebrow">연습할 문제를 골라요</span><h2>어떻게 기억하고 있나요?</h2><div class="quiz-types"><button data-type="reading" class="type-card active" aria-pressed="true"><span class="type-icon">あ → ♪</span><strong>읽는 법 고르기</strong><span>글자를 보고 보기의 발음을 들어 골라요.</span></button><button data-type="listening" class="type-card" aria-pressed="false"><span class="type-icon">♫ → あ</span><strong>듣고 문자 고르기</strong><span>발음을 듣고 맞는 글자를 골라요.</span></button><button data-type="word" class="type-card" aria-pressed="false"><span class="type-icon">□さ</span><strong>단어 빈칸 채우기</strong><span>예시 단어에 들어갈 가나를 골라요.</span></button><button data-type="similar" class="type-card" aria-pressed="false"><span class="type-icon">シ ツ</span><strong>닮은 글자 구별</strong><span>모양이 비슷한 글자 중 맞는 것을 골라요.</span></button></div><div class="start-row"><div class="start-options"><label>문제 수 <select id="question-count"><option value="10">10문제</option><option value="20">20문제</option><option value="0">선택 범위 전체</option></select></label><label class="check"><input type="checkbox" id="weak-first" checked> 약한 글자 먼저</label></div><button id="start-quiz" class="primary">연습 시작 →</button></div><p class="muted">보기의 발음도 들을 수 있어요. 풀이 후 정답과 단어를 함께 확인합니다.</p><p id="quiz-scope-note" class="muted"></p><div class="progress-summary"><p id="progress-summary"></p><button id="reset-progress" class="text-button">기록 초기화</button></div></div>
+      <div id="quiz-session" class="panel quiz-session" hidden><div class="quiz-top"><span id="question-label" class="eyebrow"></span><button id="quit-quiz" class="text-button">연습 종료</button></div><div class="progress-track"><div id="quiz-progress"></div></div><h2 id="question-prompt"></h2><div id="question-display"></div><p id="question-hint" class="muted"></p><div id="answer-options" class="answer-options"></div><div id="feedback" class="feedback" role="status" aria-live="polite"></div><div class="next-row"><span id="score-label" class="muted"></span><button id="next-question" class="primary" hidden>다음 문제 →</button></div></div>
+      <div id="quiz-results" class="panel results" hidden></div>
+    </section>
+    <section id="beat-panel" hidden aria-labelledby="beat-tab">
+      <div class="beat-intro"><span class="eyebrow">일본어는 박자로 읽어요</span><h2>한 칸 = 한 박자</h2><p class="muted">일본어는 글자 하나하나를 거의 같은 길이(박자, 모라)로 읽어요. 작은 っ, 장음, ん도 한 박자를 차지해서, 박자 수가 달라지면 뜻이 달라져요. 짝지은 두 단어를 들으며 길이 차이를 느껴 보세요.</p></div>
+      <div id="beat-lessons" class="beat-lessons"></div>
+      <div id="beat-quiz" class="panel beat-quiz"></div>
+    </section>
+    <footer><span>가나 한 걸음</span><span>소리 내어 따라 읽으면 더 오래 기억해요.</span></footer>
+  </main>
+</body>
+</html>
