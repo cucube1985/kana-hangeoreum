@@ -1,9 +1,10 @@
 'use strict';
-// 실행: node verify.js — 음성 누락, 범위, 같은 발음의 중복 보기, 닮은 글자·박자 단원 데이터 확인.
+// 실행: node verify.js — 음성 누락, 범위, 같은 발음의 중복 보기, 닮은 글자·박자 단원·필순 데이터 확인.
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const context=vm.createContext({window:{speechSynthesis:null},document:{getElementById:()=>({})},console,Math});
 vm.runInContext(fs.readFileSync('kana-data.js','utf8'),context);
 vm.runInContext(fs.readFileSync('audio-map.js','utf8'),context);
+vm.runInContext(fs.readFileSync('stroke-data.js','utf8'),context);
 const source=fs.readFileSync('app.js','utf8');
 vm.runInContext(source.slice(0,source.indexOf("$('learn-tab').onclick")),context);
 const report=vm.runInContext(`(() => {
@@ -38,6 +39,8 @@ const report=vm.runInContext(`(() => {
     const items=chars.map(c=>KANA_DATA.find(i=>i[script]===c));
     if(items.some(i=>!i)||new Set(items.map(i=>i.romaji)).size!==chars.length)issues.push('Bad similar group: '+chars.join(''));
   }
+  // 모든 가나 글자에 필순 데이터가 있고, 획 수와 번호 수가 같아야 해요.
+  for(const item of KANA_DATA)for(const c of [...(item.hira||''),...item.kata]){const d=STROKE_DATA[c];if(!d||!d.s.length||d.s.length!==d.n.length)issues.push('Stroke data: '+c);}
   for(const entry of BEAT_PAIRS.flat()){
     if(!AUDIO_FILES[entry.word])issues.push('Missing beat audio: '+entry.word);
     if(entry.marks.some(m=>m>=moraOf(entry.word).length))issues.push('Bad mora mark: '+entry.word);

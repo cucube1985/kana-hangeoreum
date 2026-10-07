@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="style.css">
   <script src="kana-data.js" defer></script>
   <script src="audio-map.js" defer></script>
+  <script src="stroke-data.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -31,7 +32,7 @@
     <section id="learn-panel" aria-labelledby="learn-tab">
       <div class="learning-layout">
         <section class="alphabet panel"><div class="panel-heading"><div><span class="eyebrow">01 / 글자 고르기</span><h2 id="alphabet-title">히라가나 기본표</h2></div><span class="count" id="letter-count">46자</span></div><p class="muted">글자를 누르면 발음과 예시 단어를 볼 수 있어요.</p><div id="kana-grid" class="kana-grid"></div><p class="grid-legend"><span class="legend-dot mastered"></span>익힌 글자 (3번 연속 정답) <span class="legend-dot weak"></span>다시 볼 글자 (최근에 틀림)</p></section>
-        <section class="flashcard panel" aria-label="선택한 문자"><div class="card-top"><span class="eyebrow">02 / 듣고 익히기</span><span id="card-position" class="muted"></span></div><div id="study-char" class="study-char" lang="ja">あ</div><div id="study-reading" class="study-reading"></div><button id="play-char" class="primary sound">▶ 글자 발음 듣기</button><p id="char-note" class="char-note"></p><div id="similar-chars" class="similar-chars"></div><div class="word-example"><span class="setting-label">기억에 남는 생활 단어</span><div id="example-word" lang="ja"></div><div id="example-reading" class="muted"></div><div id="example-meaning"></div><button id="play-word" class="text-button">▶ 예시 단어 듣기</button></div><p id="study-record" class="study-record"></p><div class="card-nav"><button id="prev-char" class="outline">← 이전</button><span>← → 키로 이동</span><button id="next-char" class="outline">다음 →</button></div></section>
+        <section class="flashcard panel" aria-label="선택한 문자"><div class="card-top"><span class="eyebrow">02 / 듣고 익히기</span><span id="card-position" class="muted"></span></div><div id="study-char" class="study-char" lang="ja">あ</div><div id="stroke-view" class="stroke-view" hidden><div id="stroke-chars" class="stroke-chars" lang="ja"></div><div class="stroke-controls"><button id="stroke-prev" class="outline" aria-label="이전 획">‹</button><span id="stroke-step" aria-live="polite"></span><button id="stroke-next" class="outline" aria-label="다음 획">›</button><button id="stroke-replay" class="text-button">↻ 다시 그리기</button></div></div><div id="study-reading" class="study-reading"></div><div class="study-actions"><button id="play-char" class="primary sound">▶ 글자 발음 듣기</button><button id="stroke-toggle" class="outline stroke-toggle" aria-pressed="false">✎ 필순</button></div><p id="char-note" class="char-note"></p><div id="similar-chars" class="similar-chars"></div><div class="word-example"><span class="setting-label">기억에 남는 생활 단어</span><div id="example-word" lang="ja"></div><div id="example-reading" class="muted"></div><div id="example-meaning"></div><button id="play-word" class="text-button">▶ 예시 단어 듣기</button></div><p id="study-record" class="study-record"></p><div class="card-nav"><button id="prev-char" class="outline">← 이전</button><span>← → 키로 이동</span><button id="next-char" class="outline">다음 →</button></div></section>
       </div>
       <div class="study-tip"><span>알아두면 좋아요</span><p id="study-tip-text"></p><p>한글은 발음의 근사치예요. 일본어 소리를 듣고 따라 해 보세요.</p></div>
     </section>
@@ -45,7 +46,7 @@
       <div id="beat-lessons" class="beat-lessons"></div>
       <div id="beat-quiz" class="panel beat-quiz"></div>
     </section>
-    <footer><span>가나 한 걸음<span id="offline-status" class="offline-status"></span></span><span>소리 내어 따라 읽으면 더 오래 기억해요.</span></footer>
+    <footer><span>가나 한 걸음<span id="offline-status" class="offline-status"></span><br>필순 데이터: <a href="https://kanjivg.tagaini.net" target="_blank" rel="noopener">KanjiVG</a> (CC BY-SA 3.0)</span><span>소리 내어 따라 읽으면 더 오래 기억해요.</span></footer>
   </main>
 </body>
 </html>

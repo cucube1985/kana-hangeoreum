@@ -133,7 +133,7 @@ function renderStudy(){
     if(state.range==='all'&&i.group==='combo'&&(i.id-71)%3===2){addGap();addGap();}
   });
   $('card-position').textContent=(position+1)+' / '+items.length;
-  $('study-char').textContent=currentChar(item);$('study-reading').innerHTML=escapeHtml(item.romaji)+'<span>'+escapeHtml(item.ko)+'</span>';
+  $('study-char').textContent=currentChar(item);if(state.strokeOpen)renderStrokes(currentChar(item));$('study-reading').innerHTML=escapeHtml(item.romaji)+'<span>'+escapeHtml(item.ko)+'</span>';
   $('char-note').textContent=noteFor(item);$('example-word').innerHTML=highlightedWord(item);
   const similar=$('similar-chars');similar.replaceChildren();
   const similarList=similarItems(item);
@@ -264,6 +264,57 @@ function showResults(){
   const again=document.createElement('button');again.className=q.mistakes.length?'outline':'primary';again.textContent='새 연습 고르기';again.onclick=resetQuiz;actions.append(again);
   const learn=document.createElement('button');learn.className='outline';learn.textContent='학습 모드로';learn.onclick=()=>{if(q.mistakes.length)state.selected=q.mistakes[0].item.id;resetQuiz();setMode('learn');};actions.append(learn);results.append(actions);
 }
+// ---- 필순 보기 (KanjiVG 데이터) ----
+const SVG_NS='http://www.w3.org/2000/svg';
+const reducedMotion=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
+const strokeView={text:'',paths:[],numbers:[],animations:[],step:null};
+function svgEl(tag,attrs){const el=document.createElementNS(SVG_NS,tag);for(const [k,v] of Object.entries(attrs))el.setAttribute(k,v);return el;}
+function renderStrokes(text){
+  if(strokeView.text===text)return;
+  strokeView.text=text;strokeView.paths=[];strokeView.numbers=[];
+  const box=$('stroke-chars');box.replaceChildren();
+  const chars=[...text],missing=chars.filter(c=>!STROKE_DATA[c]);
+  if(missing.length){box.innerHTML='<p class="muted">이 글자의 필순 데이터가 없어요.</p>';$('stroke-step').textContent='';return;}
+  chars.forEach(c=>{
+    // 작은 ゃ·ァ 등은 칸을 작게 그려 크기 차이를 보여 줘요.
+    const svg=svgEl('svg',{viewBox:'0 0 109 109',role:'img','aria-label':c+(SMALL_KANA.includes(c)?' (작은 글자)':'')+' 필순, '+STROKE_DATA[c].s.length+'획',class:SMALL_KANA.includes(c)?'small-kana':''});
+    // 연습장처럼 가운데 십자 안내선을 그려요.
+    svg.append(svgEl('path',{d:'M54.5 2V107M2 54.5H107',class:'stroke-guide'}));
+    const ghost=svgEl('g',{class:'stroke-ghost'}),ink=svgEl('g',{class:'stroke-ink'}),nums=svgEl('g',{class:'stroke-numbers'});
+    STROKE_DATA[c].s.forEach((d,i)=>{
+      ghost.append(svgEl('path',{d}));const path=svgEl('path',{d});ink.append(path);strokeView.paths.push(path);
+      const [x,y]=STROKE_DATA[c].n[i];const num=svgEl('text',{x,y});num.textContent=i+1;nums.append(num);strokeView.numbers.push(num);
+    });
+    svg.append(ghost,ink,nums);box.append(svg);
+  });
+  playStrokes();
+}
+function clearStrokeAnimations(){strokeView.animations.forEach(a=>a.cancel());strokeView.animations=[];}
+// 획을 쓰는 순서대로 그려요. 움직임 줄이기 설정이면 바로 완성된 모습을 보여 줘요.
+function playStrokes(){
+  clearStrokeAnimations();strokeView.step=null;let delay=200;
+  strokeView.paths.forEach((path,i)=>{
+    const length=path.getTotalLength();path.style.strokeDasharray=length;path.classList.remove('current');
+    if(reducedMotion()){path.style.strokeDashoffset=0;strokeView.numbers[i].style.opacity=1;return;}
+    const duration=Math.max(320,length*9);
+    strokeView.animations.push(path.animate([{strokeDashoffset:length},{strokeDashoffset:0}],{duration,delay,fill:'both',easing:'ease-in-out'}));
+    strokeView.animations.push(strokeView.numbers[i].animate([{opacity:0},{opacity:1}],{duration:150,delay,fill:'both'}));
+    delay+=duration+180;
+  });
+  $('stroke-step').textContent='총 '+strokeView.paths.length+'획';
+}
+// 한 획씩 보기: step번째 획까지 보여 주고 마지막 획을 강조해요.
+function showStrokeStep(step){
+  clearStrokeAnimations();const total=strokeView.paths.length;if(!total)return;
+  strokeView.step=Math.min(Math.max(step,1),total);
+  strokeView.paths.forEach((path,i)=>{path.style.strokeDasharray=path.getTotalLength();path.style.strokeDashoffset=i<strokeView.step?0:path.getTotalLength();path.classList.toggle('current',i===strokeView.step-1);strokeView.numbers[i].style.opacity=i<strokeView.step?1:0;});
+  $('stroke-step').textContent=strokeView.step+' / '+total+'획';
+}
+function toggleStrokes(open=!state.strokeOpen){
+  state.strokeOpen=open;$('stroke-view').hidden=!open;$('study-char').hidden=open;
+  $('stroke-toggle').setAttribute('aria-pressed',String(open));$('stroke-toggle').textContent=open?'글자로 보기':'✎ 필순';
+  if(open){strokeView.text='';renderStrokes(currentChar(KANA_DATA[state.selected]));}else clearStrokeAnimations();
+}
 // ---- 박자 익히기 ----
 const SMALL_KANA = 'ぁぃぅぇぉゃゅょゎァィゥェォャュョヮ';
 function moraOf(word){const out=[];for(const c of word){if(SMALL_KANA.includes(c)&&out.length)out[out.length-1]+=c;else out.push(c);}return out;}
@@ -353,6 +404,8 @@ $('question-count').onchange=()=>saveSetting('count',$('question-count').value);
 $('weak-first').onchange=()=>saveSetting('weakFirst',$('weak-first').checked);
 $('silent-reading').onchange=()=>{saveSetting('silentReading',$('silent-reading').checked);updateStartButton();};
 $('reset-progress').onclick=()=>{if(!confirm('글자별 풀이 기록과 박자 연습 기록을 모두 지울까요? 설정은 그대로 남아요.'))return;store.stats={};store.beat={correct:0,total:0};saveStore();updateStartButton();renderStudy();};
+$('stroke-toggle').onclick=()=>toggleStrokes();$('stroke-replay').onclick=playStrokes;
+$('stroke-prev').onclick=()=>showStrokeStep((strokeView.step??strokeView.paths.length+1)-1);$('stroke-next').onclick=()=>showStrokeStep((strokeView.step??0)+1);
 $('prev-char').onclick=()=>moveCharacter(-1);$('next-char').onclick=()=>moveCharacter(1);
 $('play-char').onclick=()=>speakKana(KANA_DATA[state.selected]);$('play-word').onclick=()=>speak(currentExample(KANA_DATA[state.selected]).word);
 document.querySelectorAll('[data-type]').forEach(button=>button.onclick=()=>{setQuizType(button.dataset.type);saveSetting('quizType',state.quizType);updateStartButton();});

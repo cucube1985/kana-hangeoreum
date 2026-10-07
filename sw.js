@@ -1,9 +1,9 @@
 'use strict';
 // 오프라인 사용을 위한 서비스 워커. 앱 파일을 바꿔 배포할 때는 VERSION을 올려 주세요.
-const VERSION = 'kana-v1';
+const VERSION = 'kana-v2';
 const FONT_CACHE = 'kana-fonts';
 importScripts('audio-map.js');
-const CORE = ['./','index.html','style.css','app.js','kana-data.js','audio-map.js','manifest.webmanifest','icons/icon-192.png','icons/icon-512.png','icons/maskable-512.png','icons/apple-touch-icon.png'];
+const CORE = ['./','index.html','style.css','app.js','kana-data.js','audio-map.js','stroke-data.js','manifest.webmanifest','icons/icon-192.png','icons/icon-512.png','icons/maskable-512.png','icons/apple-touch-icon.png'];
 const AUDIO = [...new Set(Object.values(AUDIO_FILES))];
 
 self.addEventListener('install', event => {
