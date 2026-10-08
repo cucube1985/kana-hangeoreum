@@ -77,6 +77,14 @@ const otherScript = () => state.script==='hira'?'kata':'hira';
 const optionChar = item => state.quizType==='match'?otherChar(item):currentChar(item);
 // 소리 없이 풀기를 켜면 읽기 문제의 보기에 로마자를 바로 보여 줘요.
 const silentReading = () => state.quizType==='reading'&&$('silent-reading').checked;
+// 입력 문제의 정답: 헵번식 로마자와 훈령식 등 흔한 다른 표기, 한글 발음을 모두 받아요.
+const ROMAJI_ALT = {shi:['si'],chi:['ti'],tsu:['tu'],fu:['hu'],ji:['zi'],sha:['sya'],shu:['syu'],sho:['syo'],cha:['tya','cya'],chu:['tyu','cyu'],cho:['tyo','cyo'],ja:['zya','jya'],ju:['zyu','jyu'],jo:['zyo','jyo'],n:['nn'],she:['sye'],che:['tye','cye'],je:['zye','jye'],ti:['thi'],di:['dhi'],tu:['twu'],dyu:['dhu'],wi:['whi'],we:['whe'],wo:['who']};
+const KANA_ALT = {'ぢ':['di'],'づ':['du'],'を':['wo']};
+const normalizeAnswer = text => String(text).normalize('NFKC').toLowerCase().replace(/[\s'’\-.]/g,'');
+function acceptedAnswers(item){
+  const korean=item.ko.replace(/\(.*?\)/g,'').split('/').map(t=>t.trim()).filter(Boolean);
+  return new Set([item.romaji,...(ROMAJI_ALT[item.romaji]||[]),...(KANA_ALT[item.hira]||[]),...korean].map(normalizeAnswer));
+}
 function noteFor(item){
   let note='';
   if(item.hira==='を')note='を는 보통 ‘오’로 읽으며 목적어를 나타내는 조사로 써요. 로마자 wo로 적기도 해요.';
@@ -182,7 +190,7 @@ function renderProgressSummary(){
   const items=pool(),stats=items.map(i=>statFor(i)),answered=stats.reduce((n,s)=>n+s.correct+s.wrong,0),correct=stats.reduce((n,s)=>n+s.correct,0);
   const weak=items.filter(i=>levelOf(i)==='weak'),mastered=items.filter(i=>levelOf(i)==='mastered').length;
   $('progress-summary').innerHTML=answered?'이 범위 기록: '+answered+'문제 · 정답률 '+Math.round(correct/answered*100)+'% · 익힌 글자 '+mastered+' / '+items.length+(weak.length?'<br>다시 볼 글자: <span lang="ja">'+weak.slice(0,12).map(i=>escapeHtml(currentChar(i))).join(' ')+(weak.length>12?' …':'')+'</span>':''):'아직 이 범위의 풀이 기록이 없어요. 기록은 이 브라우저에만 저장돼요.';
-  $('reset-progress').hidden=!Object.keys(store.stats).length&&!store.beat.total;
+  const hasRecords=Boolean(Object.keys(store.stats).length||store.beat.total);$('reset-progress').hidden=$('export-progress').hidden=!hasRecords;
 }
 function resetQuiz(){state.quiz=null;$('quiz-setup').hidden=false;$('quiz-session').hidden=true;$('quiz-results').hidden=true;updateStartButton();}
 function startQuiz(items){
@@ -202,13 +210,16 @@ function distractors(item,preferred=[]){
 }
 function renderQuestion(){
   stopAudio();const q=state.quiz,item=q.items[q.index],example=currentExample(item);q.answered=false;q.options=distractors(item,state.quizType==='similar'?similarItems(item):state.quizType==='match'?similarItems(item,otherScript()):[]);
-  $('question-label').textContent=({reading:'읽는 법 고르기',listening:'듣고 문자 고르기',word:'단어 빈칸 채우기',similar:'닮은 글자 구별',match:'히라·가타 짝 맞추기'}[state.quizType])+' · '+(q.index+1)+' / '+q.items.length;
+  $('question-label').textContent=({reading:'읽는 법 고르기',listening:'듣고 문자 고르기',word:'단어 빈칸 채우기',similar:'닮은 글자 구별',match:'히라·가타 짝 맞추기',input:'직접 입력하기'}[state.quizType])+' · '+(q.index+1)+' / '+q.items.length;
   $('quiz-progress').style.width=(q.index/q.items.length*100)+'%';$('score-label').textContent='현재 '+q.correct+'문제 정답';
   $('feedback').replaceChildren();$('next-question').hidden=true;
   const display=$('question-display');display.replaceChildren();display.className='';
   if(state.quizType==='reading'){
     $('question-prompt').textContent='이 글자는 어떤 소리로 읽을까요?';display.textContent=currentChar(item);
     $('question-hint').textContent=silentReading()?'보기의 로마자와 한글 발음 중 맞는 것을 골라요.':'각 보기의 ▶ 버튼을 듣고, 맞는 발음을 선택하세요.';
+  }else if(state.quizType==='input'){
+    $('question-prompt').textContent='이 글자는 어떻게 읽을까요? 직접 써 보세요.';display.textContent=currentChar(item);
+    $('question-hint').textContent='로마자(ka) 또는 한글(카)로 쓰고 Enter를 눌러요. si·tu 같은 훈령식 표기도 정답이에요.';
   }else if(state.quizType==='match'){
     $('question-prompt').textContent='같은 소리의 '+(state.script==='hira'?'가타카나':'히라가나')+'를 골라요.';display.textContent=currentChar(item);
     $('question-hint').textContent='모양이 닮은 글자가 섞여 있을 수 있어요.';
@@ -226,6 +237,8 @@ function renderQuestion(){
     const button=document.createElement('button');button.className='text-button';button.textContent='▶ 단어 듣기';button.onclick=()=>speak(example.word);$('question-hint').append(' · ',button);
   }
   const options=$('answer-options');options.replaceChildren();
+  const typing=state.quizType==='input';options.hidden=typing;$('input-answer').hidden=!typing;
+  if(typing){$('answer-input').value='';$('submit-answer').textContent='확인';$('give-up').hidden=false;$('answer-input').focus({preventScroll:true});q.options=[];return;}
   const lockAudio=['listening','similar','match'].includes(state.quizType);
   q.options.forEach((option,index)=>{
     const wrapper=document.createElement('div');wrapper.className='answer-option';wrapper.dataset.id=option.id;
@@ -246,18 +259,34 @@ function answerQuestion(id){
     if(state.quizType==='reading')wrapper.querySelector('.option-label').textContent=option.romaji+' · '+option.ko;
     if(['similar','match'].includes(state.quizType))wrapper.querySelector('.option-label').innerHTML=escapeHtml(optionChar(option))+'<small class="reading-note"> '+escapeHtml(option.romaji)+'</small>';
   });
+  showFeedback(item,correct);
+}
+function showFeedback(item,correct,typedLine=''){
+  const q=state.quiz,example=currentExample(item);
   const similarTip=state.quizType==='similar'?similarGroupsFor(item).map(([,text])=>text).join(' '):'';
-  $('feedback').innerHTML='<strong class="'+(correct?'success':'failure')+'">'+(correct?'정답이에요!':'조금 아쉬워요. 함께 다시 익혀요.')+'</strong><span lang="ja">'+escapeHtml(currentChar(item))+(state.quizType==='match'?' = '+escapeHtml(otherChar(item)):'')+'</span> = '+escapeHtml(item.romaji)+' · '+escapeHtml(item.ko)+'<br><span lang="ja">'+highlightedWord(item)+'</span> ('+escapeHtml(example.reading)+') · '+escapeHtml(example.meaning)+(similarTip?'<br>구별 요령: '+escapeHtml(similarTip):noteFor(item)?'<br>'+escapeHtml(noteFor(item)):'');
+  $('feedback').innerHTML='<strong class="'+(correct?'success':'failure')+'">'+(correct?'정답이에요!':'조금 아쉬워요. 함께 다시 익혀요.')+'</strong>'+typedLine+'<span lang="ja">'+escapeHtml(currentChar(item))+(state.quizType==='match'?' = '+escapeHtml(otherChar(item)):'')+'</span> = '+escapeHtml(item.romaji)+' · '+escapeHtml(item.ko)+'<br><span lang="ja">'+highlightedWord(item)+'</span> ('+escapeHtml(example.reading)+') · '+escapeHtml(example.meaning)+(similarTip?'<br>구별 요령: '+escapeHtml(similarTip):noteFor(item)?'<br>'+escapeHtml(noteFor(item)):'');
   const play=document.createElement('button');play.className='text-button';play.textContent='▶ 정답 듣기';play.onclick=()=>speakKana(item);$('feedback').append(play);
   $('score-label').textContent='현재 '+q.correct+'문제 정답';$('quiz-progress').style.width=((q.index+1)/q.items.length*100)+'%';
   $('next-question').hidden=false;$('next-question').textContent=q.index===q.items.length-1?'결과 보기 →':'다음 문제 →';
+}
+// 입력형 문제 채점. 답을 확인한 뒤 Enter를 한 번 더 누르면 다음 문제로 넘어가요.
+function answerTyped(gaveUp=false){
+  const q=state.quiz;if(!q)return;
+  if(q.answered){$('next-question').click();return;}
+  const typed=$('answer-input').value.trim();if(!typed&&!gaveUp){$('answer-input').focus();return;}
+  q.answered=true;const item=q.items[q.index],correct=!gaveUp&&acceptedAnswers(item).has(normalizeAnswer(typed));
+  if(correct)q.correct++;else q.mistakes.push({item,typed:gaveUp?'모름':typed});
+  recordAnswer(item,correct);
+  showFeedback(item,correct,gaveUp?'':'<span class="typed-answer">내 답: '+escapeHtml(typed)+'</span><br>');
+  $('submit-answer').textContent=q.index===q.items.length-1?'결과 보기 →':'다음 →';$('give-up').hidden=true;
+  $('next-question').hidden=true;$('answer-input').focus({preventScroll:true});
 }
 function showResults(){
   stopAudio();const q=state.quiz;$('quiz-session').hidden=true;$('quiz-results').hidden=false;
   const results=$('quiz-results');results.innerHTML='<span class="eyebrow">오늘의 연습 완료</span><h2>'+(q.correct===q.items.length?'모두 맞혔어요!':'한 걸음 더 익숙해졌어요.')+'</h2><div class="result-score">'+q.correct+'<small> / '+q.items.length+'</small></div><p class="result-caption">정답률 '+Math.round(q.correct/q.items.length*100)+'%'+(q.mistakes.length?' · 헷갈렸던 '+q.mistakes.length+'개를 다시 들어 보세요.':' · 다른 문자나 문제 유형에도 도전해 보세요.')+'</p>';
   if(q.mistakes.length){
     const list=document.createElement('div');list.className='review-list';list.innerHTML='<h3>다시 익힐 글자</h3>';
-    q.mistakes.forEach(({item,chosen})=>{const example=currentExample(item),row=document.createElement('div');row.className='review-item';row.innerHTML='<span lang="ja">'+escapeHtml(currentChar(item))+'</span><div>'+escapeHtml(item.romaji)+' · '+escapeHtml(item.ko)+'<small>내 선택: '+escapeHtml(optionChar(chosen))+' ('+escapeHtml(chosen.romaji)+')<br>'+escapeHtml(example.word)+' · '+escapeHtml(example.meaning)+'</small></div>';const play=document.createElement('button');play.className='outline';play.textContent='▶ 듣기';play.onclick=()=>speakKana(item);row.append(play);list.append(row);});results.append(list);
+    q.mistakes.forEach(({item,chosen,typed})=>{const example=currentExample(item),row=document.createElement('div');row.className='review-item';row.innerHTML='<span lang="ja">'+escapeHtml(currentChar(item))+'</span><div>'+escapeHtml(item.romaji)+' · '+escapeHtml(item.ko)+'<small>'+(chosen?'내 선택: '+escapeHtml(optionChar(chosen))+' ('+escapeHtml(chosen.romaji)+')':'내 답: '+escapeHtml(typed))+'<br>'+escapeHtml(example.word)+' · '+escapeHtml(example.meaning)+'</small></div>';const play=document.createElement('button');play.className='outline';play.textContent='▶ 듣기';play.onclick=()=>speakKana(item);row.append(play);list.append(row);});results.append(list);
   }
   const actions=document.createElement('div');actions.className='result-actions';
   if(q.mistakes.length){const retry=document.createElement('button');retry.className='primary';retry.textContent='틀린 글자만 다시 풀기';retry.onclick=()=>startQuiz(q.mistakes.map(m=>m.item));actions.append(retry);}
@@ -285,9 +314,40 @@ function renderStrokes(text){
       ghost.append(svgEl('path',{d}));const path=svgEl('path',{d});ink.append(path);strokeView.paths.push(path);
       const [x,y]=STROKE_DATA[c].n[i];const num=svgEl('text',{x,y});num.textContent=i+1;nums.append(num);strokeView.numbers.push(num);
     });
-    svg.append(ghost,ink,nums);box.append(svg);
+    svg.append(ghost,ink,nums);
+    const cell=document.createElement('div');cell.className='stroke-cell'+(SMALL_KANA.includes(c)?' small-kana':'');
+    const pad=document.createElement('canvas');pad.className='trace-pad';pad.setAttribute('aria-label',c+' 따라 쓰기 칸');setupTracePad(pad);
+    cell.append(svg,pad);box.append(cell);
   });
-  playStrokes();
+  if(state.tracing)prepareTrace();else playStrokes();
+}
+// ---- 따라 쓰기: 필순 칸 위에 손가락·마우스·펜으로 써 봐요 ----
+function sizeTracePad(pad){
+  const rect=pad.getBoundingClientRect(),ratio=window.devicePixelRatio||1;if(!rect.width)return;
+  pad.width=Math.round(rect.width*ratio);pad.height=Math.round(rect.height*ratio);
+  const ctx=pad.getContext('2d');ctx.setTransform(ratio,0,0,ratio,0,0);ctx.lineCap='round';ctx.lineJoin='round';
+  ctx.lineWidth=Math.max(3,rect.width*.045);ctx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--ink').trim()||'#263b35';
+}
+function setupTracePad(pad){
+  let drawing=false;
+  const point=event=>{const rect=pad.getBoundingClientRect();return [event.clientX-rect.left,event.clientY-rect.top];};
+  pad.addEventListener('pointerdown',event=>{if(!state.tracing)return;event.preventDefault();drawing=true;try{pad.setPointerCapture(event.pointerId);}catch{}const ctx=pad.getContext('2d'),[x,y]=point(event);ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+.01,y);ctx.stroke();});
+  pad.addEventListener('pointermove',event=>{if(!drawing)return;const ctx=pad.getContext('2d');const coalesced=event.getCoalescedEvents?.();for(const e of coalesced?.length?coalesced:[event]){const [x,y]=point(e);ctx.lineTo(x,y);}ctx.stroke();});
+  const end=()=>{drawing=false;};pad.addEventListener('pointerup',end);pad.addEventListener('pointercancel',end);
+}
+function clearTrace(){document.querySelectorAll('.trace-pad').forEach(pad=>{const ctx=pad.getContext('2d');ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,pad.width,pad.height);ctx.restore();});}
+// 따라 쓰기를 시작하면 정답 획은 숨기고 회색 글자와 획 번호만 남겨요.
+function prepareTrace(){
+  clearStrokeAnimations();strokeView.step=null;
+  strokeView.paths.forEach((path,i)=>{const length=path.getTotalLength();path.style.strokeDasharray=length;path.style.strokeDashoffset=length;path.classList.remove('current');strokeView.numbers[i].style.opacity=.7;});
+  document.querySelectorAll('.trace-pad').forEach(sizeTracePad);clearTrace();
+  $('stroke-step').textContent='총 '+strokeView.paths.length+'획';
+}
+function setTracing(on){
+  state.tracing=on;$('stroke-view').classList.toggle('tracing',on);
+  $('trace-toggle').setAttribute('aria-pressed',String(on));$('trace-toggle').textContent=on?'✍ 따라 쓰기 끝내기':'✍ 따라 쓰기';
+  $('trace-clear').hidden=$('trace-hint').hidden=!on;
+  if(on)prepareTrace();else{clearTrace();playStrokes();}
 }
 function clearStrokeAnimations(){strokeView.animations.forEach(a=>a.cancel());strokeView.animations=[];}
 // 획을 쓰는 순서대로 그려요. 움직임 줄이기 설정이면 바로 완성된 모습을 보여 줘요.
@@ -313,7 +373,7 @@ function showStrokeStep(step){
 function toggleStrokes(open=!state.strokeOpen){
   state.strokeOpen=open;$('stroke-view').hidden=!open;$('study-char').hidden=open;
   $('stroke-toggle').setAttribute('aria-pressed',String(open));$('stroke-toggle').textContent=open?'글자로 보기':'✎ 필순';
-  if(open){strokeView.text='';renderStrokes(currentChar(KANA_DATA[state.selected]));}else clearStrokeAnimations();
+  if(open){strokeView.text='';renderStrokes(currentChar(KANA_DATA[state.selected]));}else{if(state.tracing)setTracing(false);clearStrokeAnimations();}
 }
 // ---- 박자 익히기 ----
 const SMALL_KANA = 'ぁぃぅぇぉゃゅょゎァィゥェォャュョヮ';
@@ -403,12 +463,38 @@ $('voice').onchange=()=>saveSetting('voice',$('voice').value);
 $('question-count').onchange=()=>saveSetting('count',$('question-count').value);
 $('weak-first').onchange=()=>saveSetting('weakFirst',$('weak-first').checked);
 $('silent-reading').onchange=()=>{saveSetting('silentReading',$('silent-reading').checked);updateStartButton();};
+// 기록을 파일로 옮겨 다른 브라우저·기기와 이어서 쓸 수 있어요.
+function exportProgress(){
+  const data={app:'kana-hangeoreum',format:1,exportedAt:new Date().toISOString(),stats:store.stats,beat:store.beat};
+  const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,1)],{type:'application/json'}));
+  const link=document.createElement('a');link.href=url;link.download='가나한걸음-기록-'+new Date().toISOString().slice(0,10)+'.json';
+  document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+// 가져온 기록은 지금 기록과 합쳐요. 같은 글자는 더 최근에 푼 쪽을 남겨요.
+async function importProgress(file){
+  let data;try{data=JSON.parse(await file.text());}catch{alert('기록 파일을 읽지 못했어요. 가나 한 걸음에서 내보낸 .json 파일인지 확인해 주세요.');return;}
+  if(data?.app!=='kana-hangeoreum'||typeof data.stats!=='object'||!data.stats){alert('가나 한 걸음 기록 파일이 아니에요.');return;}
+  const valid=Object.entries(data.stats).filter(([key,s])=>/^(hira|kata):\d+$/.test(key)&&KANA_DATA[Number(key.split(':')[1])]&&[s?.correct,s?.wrong,s?.streak].every(n=>Number.isInteger(n)&&n>=0));
+  const beat=Number.isInteger(data.beat?.total)&&Number.isInteger(data.beat?.correct)&&data.beat.total>=0?data.beat:null;
+  if(!valid.length&&!beat?.total){alert('가져올 풀이 기록이 없어요.');return;}
+  if(!confirm(valid.length+'개 글자의 풀이 기록을 가져와 지금 기록과 합칠까요?\n같은 글자는 더 최근에 푼 기록을 남겨요.'))return;
+  let updated=0;
+  for(const [key,s] of valid){const current=store.stats[key];if(!current||(Number(s.last)||0)>(current.last||0)){store.stats[key]={correct:s.correct,wrong:s.wrong,streak:s.streak,last:Number(s.last)||0};updated++;}}
+  if(beat&&beat.total>store.beat.total)store.beat={total:beat.total,correct:Math.min(Math.max(beat.correct,0),beat.total)};
+  saveStore();updateStartButton();renderStudy();
+  alert('기록을 합쳤어요. '+updated+'개 글자의 기록이 새로 반영됐어요.');
+}
+$('export-progress').onclick=exportProgress;
+$('import-progress').onclick=()=>$('import-file').click();
+$('import-file').onchange=()=>{const file=$('import-file').files[0];$('import-file').value='';if(file)importProgress(file);};
 $('reset-progress').onclick=()=>{if(!confirm('글자별 풀이 기록과 박자 연습 기록을 모두 지울까요? 설정은 그대로 남아요.'))return;store.stats={};store.beat={correct:0,total:0};saveStore();updateStartButton();renderStudy();};
-$('stroke-toggle').onclick=()=>toggleStrokes();$('stroke-replay').onclick=playStrokes;
+$('stroke-toggle').onclick=()=>toggleStrokes();$('trace-toggle').onclick=()=>setTracing(!state.tracing);$('trace-clear').onclick=clearTrace;
+window.addEventListener('resize',()=>{if(state.tracing)document.querySelectorAll('.trace-pad').forEach(sizeTracePad);});$('stroke-replay').onclick=playStrokes;
 $('stroke-prev').onclick=()=>showStrokeStep((strokeView.step??strokeView.paths.length+1)-1);$('stroke-next').onclick=()=>showStrokeStep((strokeView.step??0)+1);
 $('prev-char').onclick=()=>moveCharacter(-1);$('next-char').onclick=()=>moveCharacter(1);
 $('play-char').onclick=()=>speakKana(KANA_DATA[state.selected]);$('play-word').onclick=()=>speak(currentExample(KANA_DATA[state.selected]).word);
 document.querySelectorAll('[data-type]').forEach(button=>button.onclick=()=>{setQuizType(button.dataset.type);saveSetting('quizType',state.quizType);updateStartButton();});
+$('input-answer').onsubmit=event=>{event.preventDefault();answerTyped();};$('give-up').onclick=()=>answerTyped(true);
 $('start-quiz').onclick=()=>startQuiz();$('quit-quiz').onclick=()=>{stopAudio();resetQuiz();};
 $('next-question').onclick=()=>{const q=state.quiz;if(!q?.answered)return;if(q.index+1<q.items.length){q.index++;renderQuestion();}else showResults();};
 document.addEventListener('keydown',event=>{
@@ -430,8 +516,17 @@ window.addEventListener('beforeunload',stopAudio);
   if([...$('question-count').options].some(o=>o.value===s.count))$('question-count').value=s.count;
   if(typeof s.weakFirst==='boolean')$('weak-first').checked=s.weakFirst;
   if(typeof s.silentReading==='boolean')$('silent-reading').checked=s.silentReading;
-  if(['reading','listening','word','similar','match'].includes(s.quizType))setQuizType(s.quizType);
+  if(['reading','listening','word','similar','match','input'].includes(s.quizType))setQuizType(s.quizType);
 })();
+// ---- 화면 테마: 자동(시스템 설정) → 밝게 → 어둡게 ----
+const THEME_LABELS={auto:'◐ 자동',light:'☀ 밝게',dark:'☾ 어둡게'};
+function applyTheme(theme){
+  if(theme==='auto')delete document.documentElement.dataset.theme;else document.documentElement.dataset.theme=theme;
+  $('theme-toggle').textContent=THEME_LABELS[theme];$('theme-toggle').setAttribute('aria-label','화면 테마: '+THEME_LABELS[theme].slice(2)+' (눌러서 바꾸기)');
+  if(state.tracing)document.querySelectorAll('.trace-pad').forEach(sizeTracePad);
+}
+$('theme-toggle').onclick=()=>{const order=['auto','light','dark'],next=order[(order.indexOf(store.settings.theme||'auto')+1)%3];saveSetting('theme',next);applyTheme(next);};
+applyTheme(['light','dark'].includes(store.settings.theme)?store.settings.theme:'auto');
 // ---- 앱 설치와 오프라인 ----
 let installPrompt=null;
 const standalone=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;

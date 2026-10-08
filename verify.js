@@ -39,6 +39,10 @@ const report=vm.runInContext(`(() => {
     const items=chars.map(c=>KANA_DATA.find(i=>i[script]===c));
     if(items.some(i=>!i)||new Set(items.map(i=>i.romaji)).size!==chars.length)issues.push('Bad similar group: '+chars.join(''));
   }
+  // 입력 문제: 모든 글자가 로마자·한글 답을 받고, 다른 표기 목록의 키가 실제 로마자여야 해요.
+  for(const item of KANA_DATA){const answers=acceptedAnswers(item);if(!answers.has(normalizeAnswer(item.romaji))||answers.size<2)issues.push('Input answers: '+item.kata);}
+  for(const key of Object.keys(ROMAJI_ALT))if(!KANA_DATA.some(i=>i.romaji===key))issues.push('Unknown ROMAJI_ALT key: '+key);
+  if(!acceptedAnswers(KANA_DATA.find(i=>i.hira==='し')).has('si')||!acceptedAnswers(KANA_DATA.find(i=>i.hira==='つ')).has('츠'))issues.push('Input alternative answers');
   // 모든 가나 글자에 필순 데이터가 있고, 획 수와 번호 수가 같아야 해요.
   for(const item of KANA_DATA)for(const c of [...(item.hira||''),...item.kata]){const d=STROKE_DATA[c];if(!d||!d.s.length||d.s.length!==d.n.length)issues.push('Stroke data: '+c);}
   for(const entry of BEAT_PAIRS.flat()){
