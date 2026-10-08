@@ -324,8 +324,10 @@ function renderStrokes(text){
 // ---- 따라 쓰기: 필순 칸 위에 손가락·마우스·펜으로 써 봐요 ----
 function sizeTracePad(pad){
   const rect=pad.getBoundingClientRect(),ratio=window.devicePixelRatio||1;if(!rect.width)return;
-  pad.width=Math.round(rect.width*ratio);pad.height=Math.round(rect.height*ratio);
-  const ctx=pad.getContext('2d');ctx.setTransform(ratio,0,0,ratio,0,0);ctx.lineCap='round';ctx.lineJoin='round';
+  // 칸 크기가 그대로면 캔버스를 다시 만들지 않아요. 휴대폰 주소창이 숨겨질 때나 테마를 바꿀 때 쓴 글씨가 지워지지 않게 해요.
+  const width=Math.round(rect.width*ratio),height=Math.round(rect.height*ratio),ctx=pad.getContext('2d');
+  if(pad.width!==width||pad.height!==height){pad.width=width;pad.height=height;}
+  ctx.setTransform(ratio,0,0,ratio,0,0);ctx.lineCap='round';ctx.lineJoin='round';
   ctx.lineWidth=Math.max(3,rect.width*.045);ctx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--ink').trim()||'#263b35';
 }
 function setupTracePad(pad){
