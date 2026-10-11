@@ -1,0 +1,5 @@
+.gradle/
+local.properties
+.signing/
+**/build/
+app/src/main/assets/www/

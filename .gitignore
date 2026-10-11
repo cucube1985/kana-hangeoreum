@@ -2,3 +2,5 @@ __pycache__/
 *.zip
 .claude/
 .kanjivg-cache/
+node_modules/
+*.apk

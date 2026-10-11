@@ -9,7 +9,7 @@ const AUDIO_CACHE = 'kana-audio';
 const FONT_CACHE = 'kana-fonts';
 const CACHES = [CORE_CACHE, AUDIO_CACHE, FONT_CACHE];
 // 첫 설치 때 미리 저장할 앱 파일. 새 파일을 index.html에 연결하면 여기에도 추가하세요 (verify.js가 확인해요).
-const CORE = ['./','index.html','style.css','app.js','kana-data.js','audio-map.js','stroke-data.js','manifest.webmanifest','icons/icon-192.png','icons/icon-512.png','icons/maskable-512.png','icons/apple-touch-icon.png'];
+const CORE = ['./','index.html','style.css','app.js','daily.js','kana-data.js','audio-map.js','stroke-data.js','manifest.webmanifest','icons/icon-192.png','icons/icon-512.png','icons/maskable-512.png','icons/apple-touch-icon.png'];
 
 async function cacheCore(){
   const cache = await caches.open(CORE_CACHE);

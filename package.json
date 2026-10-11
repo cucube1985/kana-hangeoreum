@@ -1,0 +1,7 @@
+{
+  "name":"kana-hangeoreum",
+  "version":"1.0.0",
+  "private":true,
+  "scripts":{"test":"node verify.js && node verify-daily.js","android":"powershell -ExecutionPolicy Bypass -File android/build-apk.ps1"},
+  "devDependencies":{"esbuild":"0.25.12"}
+}
