@@ -143,4 +143,5 @@ function handleAndroidBack(){
 {const test=document.createElement('div');test.style.cssText='position:absolute;visibility:hidden;display:flex;flex-direction:column;row-gap:1px;';
  for(let i=0;i<2;i++){const child=document.createElement('div');child.style.height='1px';test.append(child);}document.body.append(test);
  if(test.scrollHeight!==3)document.documentElement.classList.add('no-flex-gap');test.remove();}
-setMode('today');renderBackupReminder();
+// 안드로이드 앱은 오늘의 학습으로, 웹은 학습 모드로 시작해요. 웹에서도 오늘의 학습 탭은 그대로 쓸 수 있어요.
+setMode(window.KanaAndroid?'today':'learn');renderBackupReminder();
